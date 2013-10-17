@@ -156,6 +156,8 @@ class StatsDOptions(OptionsGlue):
          "The port where carbon cache is listening.", int],
         ["carbon-cache-name", "n", None,
          "An identifier for the carbon-cache instance."],
+        ["carbon-client-prefix", "C", None,
+         "Prefix for metrics for txstatsd's internal carbon-client.", str],
         ["listen-port", "l", 8125,
          "The UDP port where we will listen.", int],
         ["flush-interval", "i", 60000,
@@ -273,7 +275,6 @@ def createService(options):
         prefix = "statsd"
     if internal_prefix is None:
         internal_prefix = "statsd"
-    print internal_prefix
 
     instance_name = options["instance-name"]
     if not instance_name:
@@ -314,8 +315,13 @@ def createService(options):
         options["carbon-cache-port"].append(2004)
     if not options["carbon-cache-name"]:
         options["carbon-cache-name"].append(None)
+    if not options["carbon-client-prefix"]:
+        carbon_client_prefix=instance_name
+    else:
+        carbon_client_prefix=options["carbon-client-prefix"] + "." + instance_name
 
-    reporting = ReportingService(instance_name)
+    
+    reporting = ReportingService(carbon_client_prefix)
     reporting.setServiceParent(root_service)
 
     reporting.schedule(report_client_manager_stats,
