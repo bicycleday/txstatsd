@@ -162,7 +162,7 @@ class StatsDOptions(OptionsGlue):
          "The number of milliseconds between each flush.", int],
         ["prefix", "x", None,
          "Prefix to use when reporting stats.", str],
-        ["self-prefix", "x", None,
+        ["self-prefix", "X", None,
          "Prefix to use when reporting statsd daemon's own stats.\n"
          "*[Only valid when not in compliance mode", str],
         ["instance-name", "N", None,
@@ -268,11 +268,12 @@ def createService(options):
     root_service.setName("statsd")
 
     prefix = options["prefix"]
-    self_prefix = options["self-prefix"]
+    internal_prefix = options["self-prefix"]
     if prefix is None:
         prefix = "statsd"
-    if self_prefix is None:
+    if internal_prefix is None:
         internal_prefix = "statsd"
+    print internal_prefix
 
     instance_name = options["instance-name"]
     if not instance_name:
