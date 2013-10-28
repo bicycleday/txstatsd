@@ -165,8 +165,9 @@ class StatsDOptions(OptionsGlue):
         ["prefix", "x", None,
          "Prefix to use when reporting stats.", str],
         ["self-prefix", "X", None,
-         "Prefix to use when reporting statsd daemon's own stats.\n"
-         "*[Only valid when not in compliance mode", str],
+         "Prefix to use when reporting statsd daemon's own stats.", str],
+        ["legacy-namespace", "L", 1,
+         "Set to 1 for legacy or 0 for new namespace in the StatsD-compliant processor", int],
         ["instance-name", "N", None,
          "Instance name for our own stats reporting.", str],
         ["report", "r", None,
@@ -271,6 +272,8 @@ def createService(options):
 
     prefix = options["prefix"]
     internal_prefix = options["self-prefix"]
+    legacy_namespace = options["legacy-namespace"]
+
     if prefix is None:
         prefix = "statsd"
     if internal_prefix is None:
@@ -295,7 +298,12 @@ def createService(options):
         processor = functools.partial(LoggingMessageProcessor, logger=log)
 
     if options["statsd-compliance"]:
-        processor = (processor or MessageProcessor)(plugins=plugin_metrics)
+        processor = (processor or MessageProcessor)(
+            plugins=plugin_metrics,
+            message_prefix=prefix,
+            internal_metrics_prefix=(internal_prefix or prefix) +
+            "." + instance_name + ".",
+            legacy_namespace=legacy_namespace)
         input_router = Router(processor, options['routing'], root_service)
         connection = InternalClient(input_router)
         metrics = Metrics(connection)

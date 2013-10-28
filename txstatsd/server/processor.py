@@ -83,14 +83,24 @@ class MessageProcessor(BaseMessageProcessor):
     <txstatsd.server.configurableprocessor.ConfigurableMessageProcessor>}).
     """
 
-    def __init__(self, time_function=time.time, plugins=None):
+    def __init__(self, time_function=time.time, plugins=None,
+                 legacy_namespace=1, message_prefix="stats", internal_metrics_prefix="statsd."):
         self.time_function = time_function
+
+        self.legacy_namespace = legacy_namespace
 
         self.stats_prefix = "stats."
         self.internal_metrics_prefix = "statsd."
         self.count_prefix = "stats_counts."
         self.timer_prefix = self.stats_prefix + "timers."
         self.gauge_prefix = self.stats_prefix + "gauge."
+
+        if not legacy_namespace:
+            self.stats_prefix = message_prefix + "."
+            self.internal_metrics_prefix = internal_metrics_prefix
+            self.count_prefix = self.stats_prefix + "counters."
+            self.timer_prefix = self.stats_prefix + "timers."
+            self.gauge_prefix = self.stats_prefix + "gauges."
 
         self.process_timings = {}
         self.by_type = {}
@@ -291,8 +301,12 @@ class MessageProcessor(BaseMessageProcessor):
             self.counter_metrics[key] = 0
 
             value = count / interval
-            yield ((self.stats_prefix + key, value, timestamp),
-                   (self.count_prefix + key, count, timestamp))
+            if not self.legacy_namespace:
+                yield ((self.count_prefix + key + ".rate", value, timestamp),
+                       (self.count_prefix + key + ".count", count, timestamp))
+            else:
+                yield ((self.stats_prefix + key, value, timestamp),
+                       (self.count_prefix + key, count, timestamp))
 
     def flush_timer_metrics(self, percent, timestamp):
         threshold_value = ((100 - percent) / 100.0)
