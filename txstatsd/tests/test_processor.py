@@ -109,9 +109,7 @@ class ProcessMessagesTest(TestCase):
         """
         self.processor.process("gorets:9.6|g")
         self.assertEqual(1, len(self.processor.gauge_metrics))
-        self.assertEqual(
-            [9.6, 'gorets'],
-            self.processor.gauge_metrics.pop())
+        self.assertEqual(9.6, self.processor.gauge_metrics["gorets"])
 
     def test_receive_distinct_metric(self):
         """
@@ -349,6 +347,29 @@ class FlushMessagesTest(TestCase):
             ("stats.gauge.gorets.value", 9.6, 42), messages[0])
         self.assertEqual(
             ("statsd.numStats", 1, 42), messages[1])
+
+        # ensure that reporting a gauge with the same key twice keeps only the last instance
+        self.processor.process("gorets:666|g")
+        self.assertEqual(1, len(self.processor.gauge_metrics))
+        messages = list(self.processor.flush())
+        self.assertEqual(
+            ("stats.gauge.gorets.value", 666, 42), messages[0])
+        self.assertEqual(
+            ("statsd.numStats", 1, 42), messages[1])
+        
+        # verify adding a new gauge key reports both gauges
+        self.processor.process("shake:12.1|g")
+        self.assertEqual(2, len(self.processor.gauge_metrics))
+        messages = list(self.processor.flush())
+        self.assertEquals(666, self.processor.gauge_metrics["gorets"])
+        self.assertEquals(12.1, self.processor.gauge_metrics["shake"])
+        temp = sorted(messages[:2])
+        self.assertEqual(
+            ("stats.gauge.gorets.value", 666, 42), temp[0])
+        self.assertEqual(
+            ("stats.gauge.shake.value", 12.1, 42), temp[1])
+        self.assertEqual(
+            ("statsd.numStats", 2, 42), messages[2])
 
     def test_flush_distinct_metric(self):
         """

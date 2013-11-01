@@ -19,7 +19,6 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-from collections import deque
 import re
 import time
 import logging
@@ -109,7 +108,7 @@ class MessageProcessor(BaseMessageProcessor):
 
         self.timer_metrics = {}
         self.counter_metrics = {}
-        self.gauge_metrics = deque()
+        self.gauge_metrics = {}
         self.meter_metrics = {}
 
         self.plugins = {}
@@ -124,7 +123,7 @@ class MessageProcessor(BaseMessageProcessor):
         metrics = set()
         metrics.update(self.timer_metrics.keys())
         metrics.update(self.counter_metrics.keys())
-        metrics.update(v for k, v in self.gauge_metrics)
+        metrics.update(self.gauge_metrics.keys())
         metrics.update(self.meter_metrics.keys())
         metrics.update(self.plugin_metrics.keys())
         return list(metrics)
@@ -209,8 +208,7 @@ class MessageProcessor(BaseMessageProcessor):
         self.compose_gauge_metric(key, value)
 
     def compose_gauge_metric(self, key, value):
-        metric = [value, key]
-        self.gauge_metrics.append(metric)
+        self.gauge_metrics[key] = value
 
     def process_meter_metric(self, key, composite, message):
         values = composite.split(":")
@@ -338,10 +336,7 @@ class MessageProcessor(BaseMessageProcessor):
                              for item, value in items.iteritems())
 
     def flush_gauge_metrics(self, timestamp):
-        for metric in self.gauge_metrics:
-            value = metric[0]
-            key = metric[1]
-
+        for key, value in self.gauge_metrics.iteritems():
             yield ((self.gauge_prefix + key + ".value", value, timestamp),)
 
     def flush_meter_metrics(self, timestamp):
