@@ -197,8 +197,8 @@ class MessageProcessor(BaseMessageProcessor):
             self.counter_metrics[key] = 0
         try:
             self.counter_metrics[key] += value * (1 / float(rate))
-        except:
-            pass
+        except KeyError: # in case a flush just cleared the keys 
+            self.counter_metrics[key] = value * (1 / float(rate))
 
     def process_gauge_metric(self, key, composite, message):
         values = composite.split(":")
