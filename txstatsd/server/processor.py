@@ -83,10 +83,12 @@ class MessageProcessor(BaseMessageProcessor):
     """
 
     def __init__(self, time_function=time.time, plugins=None,
-                 legacy_namespace=1, message_prefix="stats", internal_metrics_prefix="statsd."):
+                 legacy_namespace=1, message_prefix="stats", internal_metrics_prefix="statsd.",
+                 delete_idle_counters=0):
         self.time_function = time_function
 
         self.legacy_namespace = legacy_namespace
+        self.delete_idle_counters = delete_idle_counters
 
         self.stats_prefix = "stats."
         self.internal_metrics_prefix = "statsd."
@@ -193,7 +195,10 @@ class MessageProcessor(BaseMessageProcessor):
     def compose_counter_metric(self, key, value, rate):
         if key not in self.counter_metrics:
             self.counter_metrics[key] = 0
-        self.counter_metrics[key] += value * (1 / float(rate))
+        try:
+            self.counter_metrics[key] += value * (1 / float(rate))
+        except:
+            pass
 
     def process_gauge_metric(self, key, composite, message):
         values = composite.split(":")
@@ -305,6 +310,9 @@ class MessageProcessor(BaseMessageProcessor):
             else:
                 yield ((self.stats_prefix + key, value, timestamp),
                        (self.count_prefix + key, count, timestamp))
+        # clear all keys on each flush to avoid processing zeros.
+        if self.delete_idle_counters:
+            self.counter_metrics = {}
 
     def flush_timer_metrics(self, percent, timestamp):
         threshold_value = ((100 - percent) / 100.0)

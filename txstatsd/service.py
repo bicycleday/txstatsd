@@ -168,6 +168,8 @@ class StatsDOptions(OptionsGlue):
          "Prefix to use when reporting statsd daemon's own stats.", str],
         ["legacy-namespace", "L", 1,
          "Set to 1 for legacy or 0 for new namespace in the StatsD-compliant processor", int],
+        ["delete-idle-counters", "D", 0,
+         "Set to 1 to delete counter keys on each flush so we don't send 0s for idle counters.", int],
         ["instance-name", "N", None,
          "Instance name for our own stats reporting.", str],
         ["report", "r", None,
@@ -273,6 +275,7 @@ def createService(options):
     prefix = options["prefix"]
     internal_prefix = options["self-prefix"]
     legacy_namespace = options["legacy-namespace"]
+    delete_idle_counters = options["delete-idle-counters"]
 
     if prefix is None:
         prefix = "statsd"
@@ -303,7 +306,8 @@ def createService(options):
             message_prefix=prefix,
             internal_metrics_prefix=(internal_prefix or prefix) +
             "." + instance_name + ".",
-            legacy_namespace=legacy_namespace)
+            legacy_namespace=legacy_namespace,
+            delete_idle_counters=delete_idle_counters)
         input_router = Router(processor, options['routing'], root_service)
         connection = InternalClient(input_router)
         metrics = Metrics(connection)
