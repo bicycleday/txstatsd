@@ -255,6 +255,26 @@ class FlushMessagesTest(TestCase):
         self.assertEqual(("statsd.numStats", 1, 42), messages[2])
         self.assertEqual(0, self.processor.counter_metrics["gorets"])
 
+    def test_flush_and_delete_counter(self):
+        """
+        If a counter is present, flushing it will generate a counter message
+        normalized to the default interval. If delete_idle_counters is true,
+        then the counter key will no longer exist after the flush.
+        """
+        del_processor = MessageProcessor(time_function=lambda: 42,
+                                          plugins=getPlugins(IMetricFactory),
+                                          delete_idle_counters=1)
+        del_processor.counter_metrics["gorets"] = 42
+        messages = list(del_processor.flush())
+        self.assertEqual(("stats.gorets", 4, 42), messages[0])
+        self.assertEqual(("stats_counts.gorets", 42, 42), messages[1])
+        self.assertEqual(("statsd.numStats", 1, 42), messages[2])
+        try:
+            self.assertEqual(0, del_processor.counter_metrics["gorets"])
+            self.fail("key 'gorets' should not exist after flush.")
+        except KeyError:
+            pass
+
     def test_flush_counter_one_second_interval(self):
         """
         It is possible to flush counters with a one-second interval, in which
