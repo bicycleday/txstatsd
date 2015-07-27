@@ -180,6 +180,9 @@ class StatsDOptions(OptionsGlue):
          "Response we should send monitoring agent.", str],
         ["statsd-compliance", "s", 1,
          "Produce StatsD-compliant messages.", int],
+        #  PYM-1307 - reduce metric count by removing un-needed metric components
+        ["lw-mode", "w", 0,
+         "Lightweight mode, don't report counts for timers or rates for counters", int],
         ["dump-mode", "d", 0,
          "Dump received and aggregated metrics"
          " before passing them to carbon.", int],
@@ -276,6 +279,7 @@ def createService(options):
     internal_prefix = options["self-prefix"]
     legacy_namespace = options["legacy-namespace"]
     delete_idle_counters = options["delete-idle-counters"]
+    lightweight_mode = options["lw-mode"]
 
     if prefix is None:
         prefix = "statsd"
@@ -307,7 +311,8 @@ def createService(options):
             internal_metrics_prefix=(internal_prefix or prefix) +
             "." + instance_name + ".",
             legacy_namespace=legacy_namespace,
-            delete_idle_counters=delete_idle_counters)
+            delete_idle_counters=delete_idle_counters,
+            lightweight_mode=lightweight_mode)
         input_router = Router(processor, options['routing'], root_service)
         connection = InternalClient(input_router)
         metrics = Metrics(connection)

@@ -84,11 +84,12 @@ class MessageProcessor(BaseMessageProcessor):
 
     def __init__(self, time_function=time.time, plugins=None,
                  legacy_namespace=1, message_prefix="stats", internal_metrics_prefix="statsd.",
-                 delete_idle_counters=0):
+                 delete_idle_counters=0, lightweight_mode=0):
         self.time_function = time_function
 
         self.legacy_namespace = legacy_namespace
         self.delete_idle_counters = delete_idle_counters
+        self.lightweight_mode = lightweight_mode
 
         self.stats_prefix = "stats."
         self.internal_metrics_prefix = "statsd."
@@ -305,11 +306,15 @@ class MessageProcessor(BaseMessageProcessor):
 
             value = count / interval
             if not self.legacy_namespace:
-                yield ((self.count_prefix + key + ".rate", value, timestamp),
-                       (self.count_prefix + key + ".count", count, timestamp))
+                output = ((self.count_prefix + key + ".rate", value, timestamp),
+                          (self.count_prefix + key + ".count", count, timestamp))
             else:
-                yield ((self.stats_prefix + key, value, timestamp),
-                       (self.count_prefix + key, count, timestamp))
+                output = ((self.stats_prefix + key, value, timestamp),
+                          (self.count_prefix + key, count, timestamp))
+            if self.lightweight_mode:
+                yield output[1:2]
+            else:
+                yield output
         # clear all keys on each flush to avoid processing zeros.
         if self.delete_idle_counters:
             self.counter_metrics = {}
@@ -338,8 +343,9 @@ class MessageProcessor(BaseMessageProcessor):
                 items = {".mean": mean,
                          ".upper": upper,
                          ".upper_%s" % percent: threshold_upper,
-                         ".lower": lower,
-                         ".count": count}
+                         ".lower": lower}
+                if not self.lightweight_mode:
+                    items[".count"] = count
                 yield sorted((self.timer_prefix + key + item, value, timestamp)
                              for item, value in items.iteritems())
 

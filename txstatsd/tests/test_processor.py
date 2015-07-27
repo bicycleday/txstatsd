@@ -255,6 +255,20 @@ class FlushMessagesTest(TestCase):
         self.assertEqual(("statsd.numStats", 1, 42), messages[2])
         self.assertEqual(0, self.processor.counter_metrics["gorets"])
 
+    def test_flush_counter_lightweight(self):
+        """
+        If a counter is present, flushing it will generate a counter message
+        normalized to the default interval. In lightweight mode no rate should
+        be returned.
+        """
+        self.processor.counter_metrics["gorets"] = 42
+        self.processor.lightweight_mode = 1
+        messages = list(self.processor.flush())
+        #self.assertEqual(("stats.gorets", 4, 42), messages[0])
+        self.assertEqual(("stats_counts.gorets", 42, 42), messages[0])
+        self.assertEqual(("statsd.numStats", 1, 42), messages[1])
+        self.assertEqual(0, self.processor.counter_metrics["gorets"])
+
     def test_flush_and_delete_counter(self):
         """
         If a counter is present, flushing it will generate a counter message
@@ -301,6 +315,23 @@ class FlushMessagesTest(TestCase):
         self.assertEqual(("stats.timers.glork.upper", 24, 42), messages[3])
         self.assertEqual(("stats.timers.glork.upper_90", 24, 42), messages[4])
         self.assertEqual(("statsd.numStats", 1, 42), messages[5])
+        self.assertEqual([], self.processor.timer_metrics["glork"])
+
+    def test_flush_single_timer_single_time_lightweight_mode(self):
+        """
+        If a single timer with a single data point is present, all of upper,
+        threshold_upper, lower, mean will be set to the same value. Timer is
+        reset after flush is called. In lightweight mode no "count" is
+        returned.
+        """
+        self.processor.lightweight_mode = 1
+        self.processor.timer_metrics["glork"] = [24]
+        messages = list(self.processor.flush())
+        self.assertEqual(("stats.timers.glork.lower", 24, 42), messages[0])
+        self.assertEqual(("stats.timers.glork.mean", 24, 42), messages[1])
+        self.assertEqual(("stats.timers.glork.upper", 24, 42), messages[2])
+        self.assertEqual(("stats.timers.glork.upper_90", 24, 42), messages[3])
+        self.assertEqual(("statsd.numStats", 1, 42), messages[4])
         self.assertEqual([], self.processor.timer_metrics["glork"])
 
     def test_flush_single_timer_multiple_times(self):
